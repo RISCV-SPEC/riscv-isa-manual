@@ -67,16 +67,16 @@ sgemm_nn:
 
 c_row_loop: # Loop across rows of C blocks
 
-    mv nt, n  # Initialize n counter for next row of C blocks
+    mv nt, n      # Initialize n counter for next row of C blocks
 
-    mv bnp, bp # Initialize B n-loop pointer to start
-    mv cnp, cp # Initialize C n-loop pointer
+    mv bnp, bp    # Initialize B n-loop pointer to start
+    mv cnp, cp    # Initialize C n-loop pointer
 
 c_col_loop: # Loop across one row of C blocks
     vsetvli nvl, nt, e32, ta, ma  # 32-bit vectors, LMUL=1
 
-    mv akp, ap   # reset pointer into A to beginning
-    mv bkp, bnp # step to next column in B matrix
+    mv akp, ap    # reset pointer into A to beginning
+    mv bkp, bnp   # step to next column in B matrix
 
     # Initalize current C submatrix block from memory.
     vle32.v  v0, (cnp); add ccp, cnp, cstride;
@@ -111,62 +111,62 @@ c_col_loop: # Loop across one row of C blocks
     # Loop on inner dimension for current C block
  k_loop:
     vfmacc.vf v0, ft0, v16
-    add bkp, bkp, bstride
-    flw ft4, (amp)
-    add amp, amp, astride
+    add       bkp, bkp, bstride
+    flw       ft4, (amp)
+    add       amp, amp, astride
     vfmacc.vf v1, ft1, v16
-    addi kt, kt, -1    # Decrement k counter
-    flw ft5, (amp)
-    add amp, amp, astride
+    addi      kt, kt, -1    # Decrement k counter
+    flw       ft5, (amp)
+    add       amp, amp, astride
     vfmacc.vf v2, ft2, v16
-    flw ft6, (amp)
-    add amp, amp, astride
-    flw ft7, (amp)
+    flw       ft6, (amp)
+    add       amp, amp, astride
+    flw       ft7, (amp)
     vfmacc.vf v3, ft3, v16
-    add amp, amp, astride
-    flw ft8, (amp)
-    add amp, amp, astride
+    add       amp, amp, astride
+    flw       ft8, (amp)
+    add       amp, amp, astride
     vfmacc.vf v4, ft4, v16
-    flw ft9, (amp)
-    add amp, amp, astride
+    flw       ft9, (amp)
+    add       amp, amp, astride
     vfmacc.vf v5, ft5, v16
-    flw ft10, (amp)
-    add amp, amp, astride
+    flw       ft10, (amp)
+    add       amp, amp, astride
     vfmacc.vf v6, ft6, v16
-    flw ft11, (amp)
-    add amp, amp, astride
+    flw       ft11, (amp)
+    add       amp, amp, astride
     vfmacc.vf v7, ft7, v16
-    flw ft12, (amp)
-    add amp, amp, astride
+    flw       ft12, (amp)
+    add       amp, amp, astride
     vfmacc.vf v8, ft8, v16
-    flw ft13, (amp)
-    add amp, amp, astride
+    flw       ft13, (amp)
+    add       amp, amp, astride
     vfmacc.vf v9, ft9, v16
-    flw ft14, (amp)
-    add amp, amp, astride
+    flw       ft14, (amp)
+    add       amp, amp, astride
     vfmacc.vf v10, ft10, v16
-    flw ft15, (amp)
-    add amp, amp, astride
-    addi akp, akp, 4            # Move to next column of a
+    flw       ft15, (amp)
+    add       amp, amp, astride
+    addi      akp, akp, 4         # Move to next column of a
     vfmacc.vf v11, ft11, v16
-    beqz kt, 1f                 # Don't load past end of matrix
-    flw ft0, (akp)
-    add amp, akp, astride
+    beqz      kt, 1f              # Don't load past end of matrix
+    flw       ft0, (akp)
+    add       amp, akp, astride
 1:  vfmacc.vf v12, ft12, v16
-    beqz kt, 1f
-    flw ft1, (amp)
-    add amp, amp, astride
+    beqz      kt, 1f
+    flw       ft1, (amp)
+    add       amp, amp, astride
 1:  vfmacc.vf v13, ft13, v16
-    beqz kt, 1f
-    flw ft2, (amp)
-    add amp, amp, astride
+    beqz      kt, 1f
+    flw       ft2, (amp)
+    add       amp, amp, astride
 1:  vfmacc.vf v14, ft14, v16
-    beqz kt, 1f                 # Exit out of loop
-    flw ft3, (amp)
-    add amp, amp, astride
+    beqz      kt, 1f              # Exit out of loop
+    flw       ft3, (amp)
+    add       amp, amp, astride
     vfmacc.vf v15, ft15, v16
-    vle32.v v16, (bkp)            # Get next vector from B matrix, overlap loads with jump stalls
-    j k_loop
+    vle32.v   v16, (bkp)          # Get next vector from B matrix, overlap loads with jump stalls
+    j         k_loop
 
 1:  vfmacc.vf v15, ft15, v16
     
@@ -192,18 +192,18 @@ c_col_loop: # Loop across one row of C blocks
     # Leaving here for clarity.
 
     # Bump pointers for loop across blocks in one row
-    slli t6, nvl, 2
-    add cnp, cnp, t6                         # Move C block pointer over
-    add bnp, bnp, t6                         # Move B block pointer over
-    sub nt, nt, nvl                          # Decrement element count in n dimension
-    bnez nt, c_col_loop                      # Any more to do?
+    slli  t6, nvl, 2
+    add   cnp, cnp, t6    # Move C block pointer over
+    add   bnp, bnp, t6    # Move B block pointer over
+    sub   nt, nt, nvl     # Decrement element count in n dimension
+    bnez  nt, c_col_loop  # Any more to do?
 
     # Move to next set of rows
-    addi m, m, -16  # Did 16 rows above
-    slli t6, astride, 4  # Multiply astride by 16
-    add ap, ap, t6         # Move A matrix pointer down 16 rows
-    slli t6, cstride, 4  # Multiply cstride by 16
-    add cp, cp, t6         # Move C matrix pointer down 16 rows
+    addi  m, m, -16  # Did 16 rows above
+    slli  t6, astride, 4  # Multiply astride by 16
+    add   ap, ap, t6      # Move A matrix pointer down 16 rows
+    slli  t6, cstride, 4  # Multiply cstride by 16
+    add   cp, cp, t6      # Move C matrix pointer down 16 rows
     
     slti t6, m, 16
     beqz t6, c_row_loop
@@ -214,8 +214,8 @@ end_rows:
     # Not done.
 
 exit:
-    ld s0, OFFSET(sp)
-    ld s1, OFFSET(sp)
-    ld s2, OFFSET(sp)
-    addi sp, sp, FRAMESIZE
+    ld    s0, OFFSET(sp)
+    ld    s1, OFFSET(sp)
+    ld    s2, OFFSET(sp)
+    addi  sp, sp, FRAMESIZE
     ret
